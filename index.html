@@ -499,7 +499,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
             <button class="btn btn-gold" onclick="nav('simplificado',null)" style="justify-content:flex-start">⚡ Nova simulação rápida</button>
             <button class="btn btn-outline" onclick="nav('completo',null)" style="justify-content:flex-start">📊 Novo caso completo</button>
             <button class="btn btn-outline" onclick="nav('clientes',null)" style="justify-content:flex-start">👤 Cadastrar cliente</button>
-            <button class="btn btn-outline" onclick="nav('relatorio',null)">📄 Gerar Relatório PDF</button>
+            <button class="btn btn-outline" onclick="phGerarRelatorioModal()">📄 Gerar Relatório PDF</button>
           </div>
           <hr>
           <div class="lbl mb8">Parâmetros fiscais vigentes</div>
@@ -2674,7 +2674,7 @@ function calcSimplificado() {
 
     <div class="flex gap8 mt16">
       <button class="btn btn-gold" onclick="salvarSimulacao()">💾 Salvar simulação</button>
-      <button class="btn btn-outline" onclick="nav('relatorio',null)">📄 Gerar Relatório</button>
+      <button class="btn btn-outline" onclick="phGerarRelatorioModal()">📄 Gerar Relatório</button>
       <button class="btn btn-ghost" onclick="resetSimp()">Refazer</button>
     </div>
   `;
