@@ -499,7 +499,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
             <button class="btn btn-gold" onclick="nav('simplificado',null)" style="justify-content:flex-start">⚡ Nova simulação rápida</button>
             <button class="btn btn-outline" onclick="nav('completo',null)" style="justify-content:flex-start">📊 Novo caso completo</button>
             <button class="btn btn-outline" onclick="nav('clientes',null)" style="justify-content:flex-start">👤 Cadastrar cliente</button>
-            <button class="btn btn-outline" onclick="phMostrarRelatorioInline()">📄 Gerar Relatório PDF</button>
+            <button class="btn btn-outline" onclick="nav('relatorio',null)">📄 Gerar Relatório PDF</button>
           </div>
           <hr>
           <div class="lbl mb8">Parâmetros fiscais vigentes</div>
@@ -1301,6 +1301,14 @@ function sbSyncDados() {
 async function sbSyncDadosNow() {
   if (!sb || !APP.usuario) return;
   try {
+    // Sync config (including logo) to profiles table
+    if (APP.config && Object.keys(APP.config).length > 0) {
+      await sb.from('profiles').upsert({
+        id: APP.usuario.id,
+        email: APP.usuario.email,
+        dados_config: JSON.stringify(APP.config),
+      }, { onConflict: 'id' });
+    }
     for (const c of APP.clientes) {
       const payload = {
         user_id: APP.usuario.id,
@@ -1351,6 +1359,13 @@ async function sbCarregarDados(user) {
   APP.usuario = user;
   if (!sb) return;
   try {
+    // Load config from profiles
+    const { data: prof } = await sb.from('profiles')
+      .select('dados_config').eq('id', user.id).single();
+    if (prof && prof.dados_config) {
+      try { APP.config = JSON.parse(prof.dados_config); } catch(e){}
+    }
+
     const { data: cls } = await sb.from('clientes')
       .select('*').eq('user_id', user.id).order('created_at');
     if (cls) {
@@ -2661,7 +2676,7 @@ function calcSimplificado() {
 
     <div class="flex gap8 mt16">
       <button class="btn btn-gold" onclick="salvarSimulacao()">💾 Salvar simulação</button>
-      <button class="btn btn-outline" onclick="phMostrarRelatorioInline()">📄 Gerar Relatório</button>
+      <button class="btn btn-outline" onclick="nav('relatorio',null)">📄 Gerar Relatório</button>
       <button class="btn btn-ghost" onclick="resetSimp()">Refazer</button>
     </div>
   `;
@@ -3592,30 +3607,60 @@ function showPdfPreview(){
   // Populate preview body with lastCalcData (same as mcUpdateRelPreview but for scr-relatorio)
   const bodyEl = document.getElementById('pdf-preview-body');
   if (!bodyEl || !lastCalcData || !lastCalcData.resultados) return;
-  const ld = lastCalcData;
-  const ref = ld.resultados.find(r => r.nome && (r.nome.includes('atual') || r.nome.includes('Individual')));
-  let html = '<div style="margin-bottom:16px"><div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:6px">Comparativo tributário</div>';
+  const ld  = lastCalcData;
+  const ref = ld.resultados.find(r => r.isRef || (r.nome && r.nome.includes('atual')));
+  const nomeEsc = APP.config && APP.config.nomeEscritorio ? APP.config.nomeEscritorio : 'Professor Holding';
+
+  let html = '<div style="margin-bottom:16px">'
+    + '<div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:10px">Comparativo tributário — todos os cenários</div>';
+
   ld.resultados.forEach(c => {
-    const isRef = c.nome && (c.nome.includes('atual') || c.nome.includes('Individual'));
+    const isRef    = c.isRef || (c.nome && c.nome.includes('atual'));
     const isMelhor = !isRef && ld.resultados
-      .filter(x => x.nome && !x.nome.includes('atual') && !x.nome.includes('Individual'))
-      .reduce((a,b) => a.cargaPct < b.cargaPct ? a : b, {cargaPct:Infinity}).nome === c.nome;
-    const economia = ref && !isRef ? (ref.totalMes||0) - (c.totalMes||0) : 0;
-    const bg = isMelhor ? '#e8f8f0' : isRef ? '#f5f5f8' : '#fff';
-    const border = isMelhor ? '1.5px solid #3ab87a' : '1px solid #e0e0e8';
-    html += '<div style="background:'+bg+';border:'+border+';border-radius:8px;padding:10px 12px;margin-bottom:8px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      .filter(x => !x.isRef && !(x.nome&&x.nome.includes('atual')))
+      .reduce((a,b)=>a.cargaPct<b.cargaPct?a:b,{cargaPct:Infinity}).nome === c.nome;
+    const economia = ref && !isRef ? (ref.totalMes||0)-(c.totalMes||0) : 0;
+    const bg     = isMelhor ? '#e8f8f0' : isRef ? '#f5f5f8' : '#fff';
+    const border = isMelhor ? '2px solid #3ab87a' : '1px solid #e0e0e8';
+
+    html += '<div style="background:'+bg+';border:'+border+';border-radius:8px;padding:12px 14px;margin-bottom:10px">';
+    // Header row
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">'
       + '<div style="flex:1">'
-      + (isMelhor?'<span style="font-size:9px;background:#3ab87a;color:#fff;border-radius:4px;padding:1px 6px;margin-right:6px">★ MELHOR OPÇÃO</span>':'')
-      + '<div style="font-size:11px;font-weight:600;color:#1a1a2e;margin-top:2px">'+(c.badge||'')+(c.badge?' — ':'')+(c.nome||'')+'</div>'
-      + (economia>0?'<div style="font-size:10px;color:#3ab87a;margin-top:2px">↓ Economia: '+(c.totalMesFmt||'')+'/mês</div>':'')
+      + (isMelhor?'<span style="font-size:9px;background:#3ab87a;color:#fff;border-radius:4px;padding:2px 7px;margin-right:5px">★ MELHOR OPÇÃO</span>':'')
+      + (c.badge?'<span style="font-size:9px;background:#e8e0d0;color:#555;border-radius:4px;padding:2px 7px;margin-right:5px">'+c.badge+'</span>':'')
+      + '<div style="font-size:12px;font-weight:700;color:#1a1a2e;margin-top:4px">'+(c.nome||'')+'</div>'
+      + (economia>0?'<div style="font-size:10px;color:#3ab87a;margin-top:3px">↓ Economia de '+fmt(economia)+'/mês vs. situação atual ('+fmtp((economia/(ref.totalMes||1))*100)+')</div>':'')
       + '</div>'
       + '<div style="text-align:right;flex-shrink:0">'
-      + '<div style="font-size:18px;font-weight:700;color:'+(isRef?'#555':isMelhor?'#3ab87a':'#e08040')+'">'+(c.cargaStr||fmtp(c.cargaPct||0))+'</div>'
-      + '<div style="font-size:10px;color:#888">'+(c.totalMesFmt||fmt(c.totalMes||0))+'/mês</div>'
-      + '</div></div></div>';
+      + '<div style="font-size:22px;font-weight:700;color:'+(isRef?'#555':isMelhor?'#3ab87a':'#e08040')+'">'+(c.cargaStr||fmtp(c.cargaPct||0))+'</div>'
+      + '<div style="font-size:11px;color:#888">'+(c.totalMesFmt||fmt(c.totalMes||0))+'/mês</div>'
+      + '<div style="font-size:10px;color:#aaa">'+fmt((c.totalMes||0)*12)+'/ano</div>'
+      + '</div></div>';
+
+    // Tributes detail row
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06)">'
+      + '<div style="font-size:10px;color:#555">Carga efetiva: <strong style="color:#1a1a2e">'+(c.cargaStr||fmtp(c.cargaPct||0))+'</strong></div>'
+      + '<div style="font-size:10px;color:#555;text-align:right">Mensal: <strong style="color:#1a1a2e">'+(c.totalMesFmt||fmt(c.totalMes||0))+'</strong></div>'
+      + '</div>';
+    html += '</div>';
   });
   html += '</div>';
+
+  // Summary table
+  html += '<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:12px">'
+    + '<thead><tr style="background:#f0f0f5"><th style="padding:5px 8px;text-align:left">Cenário</th><th style="padding:5px 8px;text-align:right">Mensal</th><th style="padding:5px 8px;text-align:right">Anual</th><th style="padding:5px 8px;text-align:right">Carga</th></tr></thead><tbody>';
+  ld.resultados.forEach(c => {
+    html += '<tr style="border-bottom:1px solid #eee">'
+      + '<td style="padding:4px 8px">'+(c.badge?c.badge+' — ':'')+c.nome+'</td>'
+      + '<td style="padding:4px 8px;text-align:right">'+(c.totalMesFmt||fmt(c.totalMes||0))+'</td>'
+      + '<td style="padding:4px 8px;text-align:right">'+fmt((c.totalMes||0)*12)+'</td>'
+      + '<td style="padding:4px 8px;text-align:right;font-weight:600">'+(c.cargaStr||fmtp(c.cargaPct||0))+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="font-size:9px;color:#aaa;margin-top:8px">Gerado por '+nomeEsc+'. Este relatório tem caráter informativo e não substitui consultoria jurídica ou tributária individualizada.</div>';
+
   bodyEl.innerHTML = html;
 }
 function toggleFab(){document.getElementById('fab-menu').classList.toggle('open');}
@@ -3658,7 +3703,9 @@ function carregarLogo(input) {
       el.style.background = 'transparent';
     });
     storageSave();
-    showToast('✓ Logo carregado!', 'success');
+    // Sync logo to Supabase if connected
+    if (sb && APP.usuario) sbSyncDados();
+    showToast('✓ Logo salvo!', 'success');
   };
   reader.readAsDataURL(file);
 }
