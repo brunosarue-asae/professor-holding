@@ -933,7 +933,8 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
                 </div>
                 <div style="text-align:right">
                   <div style="font-size:11px;color:#888">Relatório Tributário</div>
-                  <div style="font-family:'Playfair Display',serif;font-size:17px;color:#1a1a2e;font-weight:700">Professor Holding</div>
+                  <div style="font-family:'Playfair Display',serif;font-size:17px;color:#1a1a2e;font-weight:700" id="pdf-nome-caso">—</div>
+                  <div id="pdf-date" style="font-size:11px;color:#888"></div>
                   <div style="font-size:11px;color:#888" id="pdf-date"></div>
                 </div>
               </div>
@@ -3454,7 +3455,7 @@ function nav(page, el) {
   if(el){document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));el.classList.add('on');}
   closeSidebar();
   if(page==='completo') initModuloCompleto();
-  if(page==='relatorio') { showPdfPreview(); }
+  if(page==='relatorio') { updateSelectClientes(); showPdfPreview(); }
   if(page==='config') { carregarConfig(); }
 }
 function switchTab(prefix, id, el) {
