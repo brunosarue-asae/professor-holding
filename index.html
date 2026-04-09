@@ -905,16 +905,14 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
         <div>
           <div class="card mb16">
             <div class="card-title">Configurar relatório</div>
-            <div class="fg mb12"><label class="lbl2">Cliente / Caso</label><select id="rel-cliente"><option>— selecionar —</option></select></div>
-            <div class="fg mb12"><label class="lbl2">Simulação</label><select id="rel-sim"><option>— selecionar cliente primeiro —</option></select></div>
+            <div id="rel-contexto" class="mb12" style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2)">
+              <div class="xs muted mb4">Simulação atual</div>
+              <div id="rel-contexto-nome" class="fw6" style="color:var(--text)">—</div>
+            </div>
             <div class="fg mb12">
               <label class="lbl2">Cenários a incluir</label>
-              <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px">
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);font-weight:400;letter-spacing:0;text-transform:none"><input type="checkbox" checked> PF — Cenário atual</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);font-weight:400;letter-spacing:0;text-transform:none"><input type="checkbox" checked> PF — Cenário 50/50 otimizado (casal)</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);font-weight:400;letter-spacing:0;text-transform:none"><input type="checkbox" checked> PJ — Lucro Presumido</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);font-weight:400;letter-spacing:0;text-transform:none"><input type="checkbox"> PJ — Simples Nacional</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);font-weight:400;letter-spacing:0;text-transform:none"><input type="checkbox" checked> Tabela de transição IBS/CBS</label>
+              <div id="rel-cenarios-list" style="display:flex;flex-direction:column;gap:7px;margin-top:6px">
+                <div class="xs muted">Calcule uma simulação para ver os cenários disponíveis.</div>
               </div>
             </div>
             <div class="fg mb16"><label class="lbl2">Observações / Disclaimer</label>
@@ -999,7 +997,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
       <div class="grid2">
         <div class="card">
           <div class="card-title">Identidade do escritório</div>
-          <div class="fg mb16"><label class="lbl2">Nome do escritório</label><input type="text" value="Mello &amp; Associados — Direito Patrimonial"></div>
+          <div class="fg mb16"><label class="lbl2">Nome do escritório</label><input type="text" id="config-nome-esc" placeholder="Ex: Mello &amp; Associados — Direito Patrimonial"></div>
           <div class="fg mb16">
             <label class="lbl2">Logo (PNG, fundo transparente, proporção 4:1 — ex: 400×100px)</label>
             <div style="border:1.5px dashed var(--border2);border-radius:8px;padding:22px;text-align:center;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border2)'" onclick="document.getElementById('logo-file-input').click()">
@@ -1024,7 +1022,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
           <div class="xs muted mb16">Padrão quando as alíquotas definitivas do município não forem divulgadas.</div>
           <hr>
           <div class="card-title" style="font-size:14px;margin-bottom:12px">Conta</div>
-          <div class="fg mb12"><label class="lbl2">E-mail</label><input type="email" value="bruno@profholding.com.br"></div>
+          <div class="fg mb12"><label class="lbl2">E-mail</label><input type="email" id="config-email" readonly style="opacity:.7"></div>
           <div class="fg mb16"><label class="lbl2">Nova senha</label><input type="password" placeholder="Deixe em branco para manter"></div>
           <button class="btn btn-outline btn-sm">Salvar alterações</button>
         </div>
@@ -3713,7 +3711,7 @@ function carregarLogo(input) {
 function salvarConfig() {
   if (!APP.config) APP.config = {};
   // Save nome escritório
-  const nomeInput = document.querySelector('#scr-config input[type="text"]');
+  const nomeInput = document.getElementById('config-nome-esc');
   if (nomeInput) APP.config.nomeEscritorio = nomeInput.value;
   // Save alíquotas padrão
   const aliqInputs = document.querySelectorAll('#scr-config input[type="number"]');
@@ -3725,10 +3723,13 @@ function salvarConfig() {
 }
 
 function carregarConfig() {
-  if (!APP.config) return;
+  if (!APP.config) APP.config = {};
   // Restore nome escritório
-  const nomeInput = document.querySelector('#scr-config input[type="text"]');
-  if (nomeInput && APP.config.nomeEscritorio) nomeInput.value = APP.config.nomeEscritorio;
+  const nomeInput = document.getElementById('config-nome-esc');
+  if (nomeInput) nomeInput.value = APP.config.nomeEscritorio || '';
+  // Show logged-in email (read-only)
+  const emailInput = document.getElementById('config-email');
+  if (emailInput && APP.usuario) emailInput.value = APP.usuario.email || '';
   // Restore logo
   if (APP.config.logoBase64) {
     const wrap = document.getElementById('logo-preview-wrap');
