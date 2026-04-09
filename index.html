@@ -440,7 +440,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5"/><polyline points="9 12 11 14 15 10" stroke-width="1.5"/></svg>
       Política / Termos
     </div>
-    <div class="ni" onclick="nav('admin',this)">
+    <div id="nav-admin" class="ni" onclick="nav('admin',this)" style="display:none">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5"/></svg>
       Admin
     </div>
@@ -1001,13 +1001,16 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
           <div class="fg mb16"><label class="lbl2">Nome do escritório</label><input type="text" value="Mello &amp; Associados — Direito Patrimonial"></div>
           <div class="fg mb16">
             <label class="lbl2">Logo (PNG, fundo transparente, proporção 4:1 — ex: 400×100px)</label>
-            <div style="border:1.5px dashed var(--border2);border-radius:8px;padding:22px;text-align:center;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border2)'">
-              <div style="font-size:26px;margin-bottom:6px">🖼</div>
-              <div class="sm muted">Clique para enviar ou arraste o arquivo aqui</div>
-              <div class="xs muted mt8">Recomendado: 400×100px · PNG com fundo transparente</div>
+            <div style="border:1.5px dashed var(--border2);border-radius:8px;padding:22px;text-align:center;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border2)'" onclick="document.getElementById('logo-file-input').click()">
+              <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="carregarLogo(this)">
+              <div id="logo-preview-wrap">
+                <div style="font-size:26px;margin-bottom:6px">🖼</div>
+                <div class="sm muted">Clique para enviar ou arraste o arquivo aqui</div>
+                <div class="xs muted mt8">Recomendado: 400×100px · PNG com fundo transparente</div>
+              </div>
             </div>
           </div>
-          <button class="btn btn-gold btn-sm">Salvar</button>
+          <button class="btn btn-gold btn-sm" onclick="salvarConfig()">Salvar</button>
         </div>
         <div class="card">
           <div class="card-title">Alíquotas padrão IBS/CBS</div>
@@ -1280,7 +1283,7 @@ function storageSave() {
   // Save locally for offline resilience
   try {
     localStorage.setItem('ph_dados', JSON.stringify({
-      clientes: APP.clientes, simulacoes: APP.simulacoes
+      clientes: APP.clientes, simulacoes: APP.simulacoes, config: APP.config||{}
     }));
   } catch(e) {}
   // Sync to Supabase if logged in
@@ -3452,6 +3455,7 @@ function nav(page, el) {
   closeSidebar();
   if(page==='completo') initModuloCompleto();
   if(page==='relatorio') { showPdfPreview(); }
+  if(page==='config') { carregarConfig(); }
 }
 function switchTab(prefix, id, el) {
   document.querySelectorAll(`#scr-${prefix==='simp'?'simplificado':'completo'} .tab`).forEach(t=>t.classList.remove('on'));
@@ -3632,6 +3636,65 @@ function showPg(id) {
   document.getElementById('fab-wrap').style.display=id==='pg-app'?'block':'none';
 }
 
+function carregarLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result;
+    // Store in APP config
+    if (!APP.config) APP.config = {};
+    APP.config.logoBase64 = base64;
+    // Show preview
+    const wrap = document.getElementById('logo-preview-wrap');
+    if (wrap) {
+      wrap.innerHTML = '<img src="' + base64 + '" style="max-height:60px;max-width:100%;border-radius:4px">'
+        + '<div class="xs muted mt8">Logo carregado ✓ — clique para trocar</div>';
+    }
+    // Update all logo boxes in reports
+    document.querySelectorAll('.pdf-logo-box').forEach(el => {
+      el.innerHTML = '<img src="' + base64 + '" style="max-height:36px;max-width:120px;object-fit:contain">';
+      el.style.background = 'transparent';
+    });
+    storageSave();
+    showToast('✓ Logo carregado!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function salvarConfig() {
+  if (!APP.config) APP.config = {};
+  // Save nome escritório
+  const nomeInput = document.querySelector('#scr-config input[type="text"]');
+  if (nomeInput) APP.config.nomeEscritorio = nomeInput.value;
+  // Save alíquotas padrão
+  const aliqInputs = document.querySelectorAll('#scr-config input[type="number"]');
+  if (aliqInputs[0]) APP.config.ibsEstPad = parseFloat(aliqInputs[0].value)||18;
+  if (aliqInputs[1]) APP.config.ibsMunPad = parseFloat(aliqInputs[1].value)||5;
+  if (aliqInputs[2]) APP.config.cbsPad    = parseFloat(aliqInputs[2].value)||5;
+  storageSave();
+  showToast('✓ Configurações salvas!', 'success');
+}
+
+function carregarConfig() {
+  if (!APP.config) return;
+  // Restore nome escritório
+  const nomeInput = document.querySelector('#scr-config input[type="text"]');
+  if (nomeInput && APP.config.nomeEscritorio) nomeInput.value = APP.config.nomeEscritorio;
+  // Restore logo
+  if (APP.config.logoBase64) {
+    const wrap = document.getElementById('logo-preview-wrap');
+    if (wrap) {
+      wrap.innerHTML = '<img src="' + APP.config.logoBase64 + '" style="max-height:60px;max-width:100%;border-radius:4px">'
+        + '<div class="xs muted mt8">Logo carregado ✓ — clique para trocar</div>';
+    }
+    document.querySelectorAll('.pdf-logo-box').forEach(el => {
+      el.innerHTML = '<img src="' + APP.config.logoBase64 + '" style="max-height:36px;max-width:120px;object-fit:contain">';
+      el.style.background = 'transparent';
+    });
+  }
+}
+
 function showLoginCard(which) {
   document.getElementById('card-login').style.display    = which==='login'    ? 'block' : 'none';
   document.getElementById('card-cadastro').style.display = which==='cadastro' ? 'block' : 'none';
@@ -3740,6 +3803,12 @@ async function doLogin(){
   if(avatarEl) avatarEl.textContent = (loginUser.nome||'U').slice(0,2).toUpperCase();
   if(nomeEl)   nomeEl.textContent = loginUser.nome || e;
   if(planoEl){ planoEl.textContent = loginUser.role==='admin' ? '★ Administrador' : (loginUser.plano||'Pro'); planoEl.style.color='var(--gold)'; }
+  // Mostrar painel admin apenas para administradores
+  const ADMIN_EMAILS = ['brunosarue@gmail.com', 'bruno@asae.com.br'];
+  const isAdmin = loginUser.role==='admin' || ADMIN_EMAILS.includes(e);
+  const adminNav = document.getElementById('nav-admin');
+  if (adminNav) adminNav.style.display = isAdmin ? 'flex' : 'none';
+  APP.isAdmin = isAdmin;
   showPg('pg-app');
   initApp();
   updateDashStats();
