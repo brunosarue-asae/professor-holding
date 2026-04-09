@@ -290,7 +290,7 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
       <div class="login-logo-main">Professor <em>Holding</em></div>
       <div class="login-logo-sub">Calculadora de Impostos na Locação</div>
     </div>
-    <div class="login-card">
+    <div id="card-login" class="login-card">
       <div class="fw6 mb4" style="font-size:16px">Acesso ao sistema</div>
       <div class="sm muted mb20">Entre com seu e-mail e senha cadastrados</div>
       <div class="fg mb12">
@@ -304,8 +304,46 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
       <div id="login-erro"></div>
       <button class="btn btn-gold wfull" style="justify-content:center" onclick="doLogin()">Entrar</button>
       <div class="login-sep">ou</div>
-      <button class="btn btn-outline wfull" style="justify-content:center" onclick="showPg('pg-pricing')">Ver planos e preços</button>
-      <div class="mt16 text-c xs muted"><a href="#" style="color:var(--gold);text-decoration:none">Esqueci minha senha</a></div>
+      <button class="btn btn-outline wfull" style="justify-content:center" onclick="showLoginCard('cadastro')">Criar conta</button>
+      <div class="mt12 text-c xs muted">
+        <span style="color:var(--gold);cursor:pointer" onclick="showLoginCard('reset')">Esqueci minha senha</span>
+      </div>
+    </div>
+
+    <div id="card-cadastro" class="login-card" style="display:none">
+      <div class="fw6 mb4" style="font-size:16px">Criar conta</div>
+      <div class="sm muted mb20">Preencha seus dados para acessar o sistema</div>
+      <div class="fg mb12">
+        <label class="lbl2">E-mail</label>
+        <input type="email" id="cad-email" placeholder="seu@escritorio.com.br">
+      </div>
+      <div class="fg mb12">
+        <label class="lbl2">Senha</label>
+        <input type="password" id="cad-pw" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="fg mb20">
+        <label class="lbl2">Confirmar senha</label>
+        <input type="password" id="cad-pw2" placeholder="Repita a senha" onkeydown="if(event.key==='Enter')doCadastro()">
+      </div>
+      <div id="cad-erro" style="display:none;margin-bottom:12px"></div>
+      <button class="btn btn-gold wfull" style="justify-content:center" onclick="doCadastro()">Criar conta</button>
+      <div class="mt12 text-c xs muted">
+        <span style="color:var(--gold);cursor:pointer" onclick="showLoginCard('login')">← Voltar para o login</span>
+      </div>
+    </div>
+
+    <div id="card-reset" class="login-card" style="display:none">
+      <div class="fw6 mb4" style="font-size:16px">Recuperar senha</div>
+      <div class="sm muted mb20">Enviaremos um link para redefinir sua senha</div>
+      <div class="fg mb20">
+        <label class="lbl2">E-mail</label>
+        <input type="email" id="reset-email" placeholder="seu@escritorio.com.br" onkeydown="if(event.key==='Enter')doResetSenha()">
+      </div>
+      <div id="reset-msg" style="display:none;margin-bottom:12px"></div>
+      <button class="btn btn-gold wfull" style="justify-content:center" onclick="doResetSenha()">Enviar link</button>
+      <div class="mt12 text-c xs muted">
+        <span style="color:var(--gold);cursor:pointer" onclick="showLoginCard('login')">← Voltar para o login</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1203,8 +1241,8 @@ hr{border:none;border-top:1px solid var(--border);margin:18px 0;}
 // ══════════════════════════════════════════════
 // SUPABASE CONFIG — substitua pelos seus valores
 // ══════════════════════════════════════════════
-const SUPABASE_URL  = 'https://acwiajibpyupcyknbocw.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_DhkLnQolD_PUR3WjdCFyEQ_EuzhnQY2';
+const SUPABASE_URL  = 'https://nudufdiaqeaekyzvouts.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_W2XwN06bEv6zB1Ye1cMXLw_mdfi2gQ0';
 // sb só é inicializado quando as credenciais forem configuradas
 const _sbConfigured = SUPABASE_URL.startsWith('https://') && SUPABASE_KEY.length > 20;
 let sb = null;
@@ -3592,6 +3630,66 @@ function showPg(id) {
   const target=document.getElementById(id);
   if(target){target.style.display=id==='pg-app'?'block':'flex';}
   document.getElementById('fab-wrap').style.display=id==='pg-app'?'block':'none';
+}
+
+function showLoginCard(which) {
+  document.getElementById('card-login').style.display    = which==='login'    ? 'block' : 'none';
+  document.getElementById('card-cadastro').style.display = which==='cadastro' ? 'block' : 'none';
+  document.getElementById('card-reset').style.display    = which==='reset'    ? 'block' : 'none';
+}
+
+async function doCadastro() {
+  const email = document.getElementById('cad-email').value.trim().toLowerCase();
+  const pw    = document.getElementById('cad-pw').value;
+  const pw2   = document.getElementById('cad-pw2').value;
+  const errEl = document.getElementById('cad-erro');
+  const btnEl = document.querySelector('#card-cadastro button.btn-gold');
+
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent='Preencha e-mail e senha.'; errEl.style.display='block'; return; }
+  if (pw.length < 6) { errEl.textContent='A senha deve ter pelo menos 6 caracteres.'; errEl.style.display='block'; return; }
+  if (pw !== pw2)    { errEl.textContent='As senhas não coincidem.'; errEl.style.display='block'; return; }
+
+  if (!sb) { errEl.textContent='Cadastro requer conexão com o servidor.'; errEl.style.display='block'; return; }
+
+  if (btnEl) { btnEl.disabled=true; btnEl.textContent='Criando conta...'; }
+  const { data, error } = await sb.auth.signUp({ email, password: pw });
+  if (btnEl) { btnEl.disabled=false; btnEl.textContent='Criar conta'; }
+
+  if (error) {
+    errEl.textContent = error.message.includes('already') ? 'Este e-mail já está cadastrado.' : error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+  // Login automatically after signup
+  await sbCarregarDados(data.user);
+  showPg('pg-app');
+  initApp();
+  setTimeout(phCheckSecBanner, 1500);
+}
+
+async function doResetSenha() {
+  const email = document.getElementById('reset-email').value.trim().toLowerCase();
+  const msgEl = document.getElementById('reset-msg');
+  const btnEl = document.querySelector('#card-reset button.btn-gold');
+
+  msgEl.style.display = 'none';
+  if (!email) { msgEl.textContent='Informe seu e-mail.'; msgEl.style.cssText='display:block;color:var(--red);margin-bottom:12px'; return; }
+  if (!sb) { msgEl.textContent='Recuperação requer conexão com o servidor.'; msgEl.style.cssText='display:block;color:var(--red);margin-bottom:12px'; return; }
+
+  if (btnEl) { btnEl.disabled=true; btnEl.textContent='Enviando...'; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+  if (btnEl) { btnEl.disabled=false; btnEl.textContent='Enviar link'; }
+
+  if (error) {
+    msgEl.textContent = 'Erro: ' + error.message;
+    msgEl.style.cssText = 'display:block;color:var(--red);margin-bottom:12px';
+  } else {
+    msgEl.textContent = '✓ Link enviado! Verifique seu e-mail.';
+    msgEl.style.cssText = 'display:block;color:var(--green);margin-bottom:12px';
+  }
 }
 
 async function doLogin(){
