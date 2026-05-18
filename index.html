@@ -1170,11 +1170,9 @@ function escapeHTML(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'
 function initSupabase() {
   // Called when Supabase SDK finishes loading
   if (typeof supabase === 'undefined') return;
-  const url = 'https://nudufdiaqeaekyzvouts.supabase.co';
-  const key = 'sb_publishable_W2XwN06bEv6zB1Ye1cMXLw_mdfi2gQ0';
-  if (url.startsWith('https://') && key.length > 20) {
+  if (SUPABASE_URL.startsWith('https://') && SUPABASE_KEY.length > 20) {
     try {
-      sb = supabase.createClient(url, key);
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       // Check for existing session
       sbCheckSession();
     } catch(e) { console.warn('Supabase init:', e.message); }
