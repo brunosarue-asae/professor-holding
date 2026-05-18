@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="initSupabase()"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onload="window._sbSDKReady=true;if(typeof initSupabase==='function')initSupabase()"></script>
 <title>Professor Holding — Calculadora de Impostos na Locação</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -1178,6 +1178,7 @@ function initSupabase() {
     } catch(e) { console.warn('Supabase init:', e.message); }
   }
 }
+if (window._sbSDKReady) initSupabase();
 
 // ══════════════════════════════════════════════
 // SUPABASE CONFIG — substitua pelos seus valores
