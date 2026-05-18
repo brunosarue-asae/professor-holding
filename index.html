@@ -1178,7 +1178,6 @@ function initSupabase() {
     } catch(e) { console.warn('Supabase init:', e.message); }
   }
 }
-if (window._sbSDKReady) initSupabase();
 
 // ══════════════════════════════════════════════
 // SUPABASE CONFIG — substitua pelos seus valores
@@ -1188,7 +1187,8 @@ const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // sb só é inicializado quando as credenciais forem configuradas
 const _sbConfigured = SUPABASE_URL.startsWith('https://') && SUPABASE_KEY.length > 20;
 let sb = null;
-// sb será inicializado após o SDK carregar (ver script no <head>)
+// Fallback: se o SDK já carregou antes deste script, inicializar agora
+if (window._sbSDKReady) initSupabase();
 
 // ══════════════════════════════════════════════
 // ESTADO DA APLICAÇÃO
